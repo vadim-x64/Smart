@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <title>Smart TODO App</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+<div class="container">
+    <header class="app-header text-center animate__animated animate__fadeInDown">
+        <h1><i class="fas fa-check-double me-2"></i>Smart TODO App</h1>
+        <p class="mb-0">Організуйте свої справи легко та ефективно</p>
+    </header>
+    <div class="row mb-4">
+        <div class="col-md-6 animate__animated animate__fadeInLeft">
+            <div class="stats-card">
+                <h5 class="text-center mb-3">Статистика</h5>
+                <div class="row">
+                    <div class="col-4">
+                        <div class="stats-item bg-info bg-opacity-10 text-info">
+                            <div id="item-count" class="fs-4 fw-bold">0</div>
+                            <small>Всього</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stats-item bg-success bg-opacity-10 text-success">
+                            <div id="completed-count" class="fs-4 fw-bold">0</div>
+                            <small>Виконано</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="stats-item bg-warning bg-opacity-10 text-warning">
+                            <div id="unchecked-count" class="fs-4 fw-bold">0</div>
+                            <small>Залишилось</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="completed-progress mt-3">
+                    <div id="progress-bar" class="completed-progress-bar"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 animate__animated animate__fadeInRight">
+            <div class="stats-card">
+                <h5 class="text-center mb-3">Управління</h5>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTodoModal">
+                        <i class="fas fa-plus me-2"></i>Нова справа
+                    </button>
+                    <div class="btn-group" role="group">
+                        <button id="toggleTheme" class="btn btn-outline-secondary">
+                            <i class="fas fa-moon me-2"></i>Змінити тему
+                        </button>
+                        <button id="clearCompleted" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-2"></i>Видалити виконані
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="filter-buttons mb-3 animate__animated animate__fadeInUp">
+        <div class="btn-group w-100" role="group">
+            <button id="showAll" class="btn btn-outline-primary active">Всі справи</button>
+            <button id="showActive" class="btn btn-outline-primary">Активні</button>
+            <button id="showCompleted" class="btn btn-outline-primary">Виконані</button>
+        </div>
+    </div>
+    <ul id="todo-list" class="list-group animate__animated animate__fadeIn"></ul>
+</div>
+<div class="modal fade" id="addTodoModal" tabindex="-1" aria-labelledby="addTodoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addTodoModalLabel">Нова справа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newTodoForm">
+                    <div class="mb-3">
+                        <label for="todoText" class="form-label">Опис справи</label>
+                        <input type="text" class="form-control" id="todoText" required placeholder="Що потрібно зробити?">
+                    </div>
+                    <div class="mb-3">
+                        <label for="todoDescription" class="form-label">Деталі (необов'язково)</label>
+                        <textarea class="form-control" id="todoDescription" rows="2" placeholder="Додаткова інформація..."></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="todoPriority" class="form-label">Пріоритет</label>
+                            <select class="form-select" id="todoPriority">
+                                <option value="low">Низький</option>
+                                <option value="medium" selected>Середній</option>
+                                <option value="high">Високий</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="todoDeadline" class="form-label">Дедлайн (необов'язково)</label>
+                            <input type="date" class="form-control" id="todoDeadline">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" id="saveTodoBtn">Зберегти</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="editTodoModal" tabindex="-1" aria-labelledby="editTodoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editTodoModalLabel">Редагування справи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTodoForm">
+                    <input type="hidden" id="editTodoId">
+                    <div class="mb-3">
+                        <label for="editTodoText" class="form-label">Опис справи</label>
+                        <input type="text" class="form-control" id="editTodoText" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTodoDescription" class="form-label">Деталі (необов'язково)</label>
+                        <textarea class="form-control" id="editTodoDescription" rows="2"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editTodoPriority" class="form-label">Пріоритет</label>
+                            <select class="form-select" id="editTodoPriority">
+                                <option value="low">Низький</option>
+                                <option value="medium">Середній</option>
+                                <option value="high">Високий</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTodoDeadline" class="form-label">Дедлайн (необов'язково)</label>
+                            <input type="date" class="form-control" id="editTodoDeadline">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" id="updateTodoBtn">Оновити</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="viewTodoModal" tabindex="-1" aria-labelledby="viewTodoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewTodoModalLabel">Деталі справи</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h4 id="viewTodoTitle"></h4>
+                <div class="mb-3">
+                    <span id="viewTodoPriority" class="badge"></span>
+                    <span id="viewTodoCompleted" class="badge"></span>
+                </div>
+                <p id="viewTodoDescription" class="text-muted"></p>
+                <div class="row mt-4">
+                    <div class="col-6">
+                        <small class="text-muted">Створено:</small>
+                        <p id="viewTodoCreatedAt"></p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Дедлайн:</small>
+                        <p id="viewTodoDeadline"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрити</button>
+                <button type="button" class="btn btn-primary" id="viewEditTodoBtn">Редагувати</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="deleteTodoModal" tabindex="-1" aria-labelledby="deleteTodoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteTodoModalLabel">Підтвердження</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити цю справу?</p>
+                <input type="hidden" id="deleteTodoId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Видалити</button>
+            </div>
+        </div>
+    </div>
+</div>
+<footer class="app-footer text-center mt-5 mb-3">
+    <p class="fw-bold">Додаток оптимізовано для мобільних пристроїв</p>
+</footer>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script src="index.js"></script>
+</body>
+</html>
