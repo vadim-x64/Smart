@@ -1,47 +1,200 @@
 let todos = [];
 let currentFilter = 'all';
+let firebaseUrl = '';
+let isOnline = true;
 const todoList = document.getElementById('todo-list');
 const itemCountSpan = document.getElementById('item-count');
 const uncheckedCountSpan = document.getElementById('unchecked-count');
 const completedCountSpan = document.getElementById('completed-count');
 const progressBar = document.getElementById('progress-bar');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const errorAlert = document.getElementById('errorAlert');
+const firebaseConfigForm = document.getElementById('firebaseConfigForm');
+const mainApp = document.getElementById('mainApp');
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadTodos();
-    loadTheme();
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        new bootstrap.Modal(modal);
-    });
-});
-
-document.getElementById('showAll').addEventListener('click', () => applyFilter('all'));
-document.getElementById('showActive').addEventListener('click', () => applyFilter('active'));
-document.getElementById('showCompleted').addEventListener('click', () => applyFilter('completed'));
-document.getElementById('toggleTheme').addEventListener('click', toggleTheme);
-document.getElementById('clearCompleted').addEventListener('click', clearCompleted);
-document.getElementById('saveTodoBtn').addEventListener('click', saveNewTodo);
-document.getElementById('updateTodoBtn').addEventListener('click', updateTodo);
-document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteTodo);
-document.getElementById('viewEditTodoBtn').addEventListener('click', () => {
-    const todoId = document.getElementById('viewTodoModal').getAttribute('data-id');
-    bootstrap.Modal.getInstance(document.getElementById('viewTodoModal')).hide();
-    setTimeout(() => editTodoModal(todoId), 400);
-});
-
-function loadTodos() {
-    const savedTodos = localStorage.getItem('todos');
-    if (savedTodos) {
-        todos = JSON.parse(savedTodos);
-    } else {
-        todos = [];
-        saveTodos();
+async function connectToFirebase() {
+    const url = document.getElementById('firebaseUrl').value.trim();
+    if (!url) {
+        showError('Будь ласка, введіть URL Firebase Database');
+        return;
     }
-    render();
+    firebaseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+    try {
+        showLoading('Підключення до Firebase...');
+        const response = await fetch(`${firebaseUrl}/test.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        firebaseConfigForm.style.display = 'none';
+        mainApp.style.display = 'block';
+        await loadTodosFromFirebase();
+        showToast('Успішно підключено до Firebase!', 'success');
+    } catch (error) {
+        console.error('Firebase connection error:', error);
+        showError('Помилка підключення до Firebase: ' + error.message);
+    } finally {
+        hideLoading();
+    }
 }
 
-function saveTodos() {
-    localStorage.setItem('todos', JSON.stringify(todos));
+async function addTodo(todoData) {
+    try {
+        showLoading('Додавання справи...');
+        const response = await fetch(`${firebaseUrl}/todos.json`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(todoData)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result = await response.json();
+        return result.name;
+    } catch (error) {
+        console.error('Error adding todo:', error);
+        showError('Помилка при додаванні справи: ' + error.message);
+        throw error;
+    } finally {
+        hideLoading();
+    }
+}
+
+async function getTodos() {
+    try {
+        showLoading('Завантаження справ...');
+        const response = await fetch(`${firebaseUrl}/todos.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data) {
+            return [];
+        }
+        const todosArray = Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+        }));
+        return todosArray;
+    } catch (error) {
+        console.error('Error getting todos:', error);
+        showError('Помилка при завантаженні справ: ' + error.message);
+        return [];
+    } finally {
+        hideLoading();
+    }
+}
+
+async function updateTodoInFirebase(id, todoData) {
+    try {
+        showLoading('Оновлення справи...');
+        const response = await fetch(`${firebaseUrl}/todos/${id}.json`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(todoData)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error updating todo:', error);
+        showError('Помилка при оновленні справи: ' + error.message);
+        throw error;
+    } finally {
+        hideLoading();
+    }
+}
+
+async function deleteTodoFromFirebase(id) {
+    try {
+        showLoading('Видалення справи...');
+        const response = await fetch(`${firebaseUrl}/todos/${id}.json`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return true;
+    } catch (error) {
+        console.error('Error deleting todo:', error);
+        showError('Помилка при видаленні справи: ' + error.message);
+        throw error;
+    } finally {
+        hideLoading();
+    }
+}
+
+function showLoading(message = 'Завантаження...') {
+    document.getElementById('loadingText').textContent = message;
+    loadingOverlay.style.display = 'flex';
+}
+
+function hideLoading() {
+    loadingOverlay.style.display = 'none';
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').textContent = message;
+    errorAlert.style.display = 'block';
+    setTimeout(() => {
+        hideError();
+    }, 5000);
+}
+
+function hideError() {
+    errorAlert.style.display = 'none';
+}
+
+function showToast(message, type = 'info') {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(toastContainer);
+    }
+    const toastId = `toast-${Date.now()}`;
+    const toast = document.createElement('div');
+    toast.className = `toast bg-${type} text-white animate__animated animate__fadeInUp`;
+    toast.id = toastId;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const toastInstance = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 3000
+    });
+    toastInstance.show();
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
+async function loadTodosFromFirebase() {
+    try {
+        todos = await getTodos();
+        render();
+    } catch (error) {
+        console.error('Error loading todos:', error);
+        showError('Помилка завантаження справ');
+    }
+}
+
+async function refreshData() {
+    await loadTodosFromFirebase();
+    showToast('Дані оновлено!', 'info');
 }
 
 function formatDate(dateString) {
@@ -94,7 +247,7 @@ function render() {
         if (a.completed !== b.completed) {
             return a.completed ? 1 : -1;
         }
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
+        const priorityOrder = {high: 0, medium: 1, low: 2};
         return priorityOrder[a.priority] - priorityOrder[b.priority];
     });
     filteredTodos.forEach(todo => {
@@ -158,7 +311,19 @@ function applyFilter(filter) {
     document.querySelectorAll('.filter-buttons button').forEach(button => {
         button.classList.remove('active');
     });
-    document.getElementById(`show${filter.charAt(0).toUpperCase() + filter.slice(1)}`).classList.add('active');
+    let buttonId;
+    switch(filter) {
+        case 'all':
+            buttonId = 'showAll';
+            break;
+        case 'active':
+            buttonId = 'showActive';
+            break;
+        case 'completed':
+            buttonId = 'showCompleted';
+            break;
+    }
+    document.getElementById(buttonId).classList.add('active');
     render();
 }
 
@@ -173,7 +338,7 @@ function updateStats() {
     progressBar.style.width = `${completionPercentage}%`;
 }
 
-function saveNewTodo() {
+async function saveNewTodo() {
     const todoText = document.getElementById('todoText').value.trim();
     if (!todoText) {
         shakeTodoText();
@@ -183,7 +348,6 @@ function saveNewTodo() {
     const todoPriority = document.getElementById('todoPriority').value;
     const todoDeadline = document.getElementById('todoDeadline').value;
     const newTodo = {
-        id: Date.now().toString(),
         text: todoText,
         description: todoDescription,
         completed: false,
@@ -191,29 +355,41 @@ function saveNewTodo() {
         createdAt: new Date().toISOString(),
         deadline: todoDeadline ? new Date(todoDeadline).toISOString() : null
     };
-    todos.unshift(newTodo);
-    saveTodos();
-    bootstrap.Modal.getInstance(document.getElementById('addTodoModal')).hide();
-    document.getElementById('newTodoForm').reset();
-    applyFilter('all');
-    showToast('Справу успішно додано!', 'success');
+    try {
+        const firebaseId = await addTodo(newTodo);
+        newTodo.id = firebaseId;
+        todos.unshift(newTodo);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addTodoModal'));
+        modal.hide();
+        document.getElementById('newTodoForm').reset();
+        applyFilter('all');
+        showToast('Справу успішно додано!', 'success');
+    } catch (error) {
+        console.error('Error saving todo:', error);
+    }
 }
 
-function checkTodo(id) {
+async function checkTodo(id) {
     const todoIndex = todos.findIndex(todo => todo.id === id);
     if (todoIndex !== -1) {
-        todos[todoIndex].completed = !todos[todoIndex].completed;
-        const listItem = document.querySelector(`li[data-id="${id}"]`);
-        const todoText = listItem.querySelector('.todo-text');
-        if (todos[todoIndex].completed) {
-            todoText.classList.add('text-completed');
-            listItem.classList.add('bg-light');
-        } else {
-            todoText.classList.remove('text-completed');
-            listItem.classList.remove('bg-light');
+        const newCompletedStatus = !todos[todoIndex].completed;
+        try {
+            await updateTodoInFirebase(id, { completed: newCompletedStatus });
+            todos[todoIndex].completed = newCompletedStatus;
+            const listItem = document.querySelector(`li[data-id="${id}"]`);
+            const todoText = listItem.querySelector('.todo-text');
+            if (todos[todoIndex].completed) {
+                todoText.classList.add('text-completed');
+                listItem.classList.add('bg-light');
+            } else {
+                todoText.classList.remove('text-completed');
+                listItem.classList.remove('bg-light');
+            }
+            updateStats();
+        } catch (error) {
+            const checkbox = document.getElementById(`check-${id}`);
+            checkbox.checked = !newCompletedStatus;
         }
-        saveTodos();
-        updateStats();
     }
 }
 
@@ -231,11 +407,12 @@ function editTodoModal(id) {
         } else {
             document.getElementById('editTodoDeadline').value = '';
         }
-        bootstrap.Modal.getInstance(document.getElementById('editTodoModal')).show();
+        const modal = new bootstrap.Modal(document.getElementById('editTodoModal'));
+        modal.show();
     }
 }
 
-function updateTodo() {
+async function updateTodo() {
     const todoId = document.getElementById('editTodoId').value;
     const todoText = document.getElementById('editTodoText').value.trim();
     if (!todoText) {
@@ -251,43 +428,59 @@ function updateTodo() {
         const todoDescription = document.getElementById('editTodoDescription').value.trim();
         const todoPriority = document.getElementById('editTodoPriority').value;
         const todoDeadline = document.getElementById('editTodoDeadline').value;
-        todos[todoIndex] = {
-            ...todos[todoIndex],
+        const updatedData = {
             text: todoText,
             description: todoDescription,
             priority: todoPriority,
             deadline: todoDeadline ? new Date(todoDeadline).toISOString() : null
         };
-        saveTodos();
-        bootstrap.Modal.getInstance(document.getElementById('editTodoModal')).hide();
-        render();
-        showToast('Справу успішно оновлено!', 'info');
+        try {
+            await updateTodoInFirebase(todoId, updatedData);
+            todos[todoIndex] = {
+                ...todos[todoIndex],
+                ...updatedData
+            };
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editTodoModal'));
+            modal.hide();
+            render();
+            showToast('Справу успішно оновлено!', 'info');
+        } catch (error) {
+            console.error('Error updating todo:', error);
+        }
     }
 }
 
 function deleteTodoModal(id) {
     document.getElementById('deleteTodoId').value = id;
-    bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal')).show();
+    const modal = new bootstrap.Modal(document.getElementById('deleteTodoModal'));
+    modal.show();
 }
 
-function confirmDeleteTodo() {
+async function confirmDeleteTodo() {
     const todoId = document.getElementById('deleteTodoId').value;
     const listItem = document.querySelector(`li[data-id="${todoId}"]`);
-    if (listItem) {
-        listItem.classList.add('slide-fade-out');
-        setTimeout(() => {
+    try {
+        await deleteTodoFromFirebase(todoId);
+        if (listItem) {
+            listItem.classList.add('slide-fade-out');
+            setTimeout(() => {
+                todos = todos.filter(todo => todo.id !== todoId);
+                const modal = bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal'));
+                modal.hide();
+                render();
+                showToast('Справу успішно видалено!', 'danger');
+            }, 300);
+        } else {
             todos = todos.filter(todo => todo.id !== todoId);
-            saveTodos();
-            bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal')).hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal'));
+            modal.hide();
             render();
             showToast('Справу успішно видалено!', 'danger');
-        }, 300);
-    } else {
-        todos = todos.filter(todo => todo.id !== todoId);
-        saveTodos();
-        bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal')).hide();
-        render();
-        showToast('Справу успішно видалено!', 'danger');
+        }
+    } catch (error) {
+        console.error('Error deleting todo:', error);
+        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteTodoModal'));
+        modal.hide();
     }
 }
 
@@ -312,7 +505,8 @@ function viewTodo(id) {
             deadlineElement.textContent = 'Не встановлено';
             deadlineElement.className = '';
         }
-        bootstrap.Modal.getInstance(document.getElementById('viewTodoModal')).show();
+        const modal = new bootstrap.Modal(document.getElementById('viewTodoModal'));
+        modal.show();
     }
 }
 
@@ -334,13 +528,22 @@ function getPriorityColor(priority) {
     }
 }
 
-function clearCompleted() {
-    if (todos.some(todo => todo.completed)) {
+async function clearCompleted() {
+    const completedTodos = todos.filter(todo => todo.completed);
+    if (completedTodos.length > 0) {
         if (confirm('Ви впевнені, що хочете видалити всі виконані справи?')) {
-            todos = todos.filter(todo => !todo.completed);
-            saveTodos();
-            render();
-            showToast('Виконані справи видалено!', 'info');
+            try {
+                showLoading('Видалення виконаних справ...');
+                await Promise.all(completedTodos.map(todo => deleteTodoFromFirebase(todo.id)));
+                todos = todos.filter(todo => !todo.completed);
+                render();
+                showToast('Виконані справи видалено!', 'info');
+            } catch (error) {
+                console.error('Error clearing completed todos:', error);
+                showError('Помилка при видаленні виконаних справ');
+            } finally {
+                hideLoading();
+            }
         }
     } else {
         showToast('Немає виконаних справ для видалення', 'warning');
@@ -361,14 +564,10 @@ function toggleTheme() {
     const themeIcon = document.querySelector('#toggleTheme i');
     if (document.body.classList.contains('dark-mode')) {
         themeIcon.className = 'fas fa-sun me-2';
-        document.getElementById('toggleTheme').textContent = '';
-        document.getElementById('toggleTheme').appendChild(themeIcon);
-        document.getElementById('toggleTheme').appendChild(document.createTextNode('Світла тема'));
+        document.getElementById('toggleTheme').innerHTML = '<i class="fas fa-sun me-2"></i>Світла тема';
     } else {
         themeIcon.className = 'fas fa-moon me-2';
-        document.getElementById('toggleTheme').textContent = '';
-        document.getElementById('toggleTheme').appendChild(themeIcon);
-        document.getElementById('toggleTheme').appendChild(document.createTextNode('Темна тема'));
+        document.getElementById('toggleTheme').innerHTML = '<i class="fas fa-moon me-2"></i>Темна тема';
     }
 }
 
@@ -376,57 +575,13 @@ function loadTheme() {
     const darkMode = localStorage.getItem('darkMode') === 'true';
     if (darkMode) {
         document.body.classList.add('dark-mode');
-        const themeIcon = document.querySelector('#toggleTheme i');
-        themeIcon.className = 'fas fa-sun me-2';
-        document.getElementById('toggleTheme').textContent = '';
-        document.getElementById('toggleTheme').appendChild(themeIcon);
-        document.getElementById('toggleTheme').appendChild(document.createTextNode('Світла тема'));
+        document.getElementById('toggleTheme').innerHTML = '<i class="fas fa-sun me-2"></i>Світла тема';
     }
 }
-
-function showToast(message, type = 'info') {
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        document.body.appendChild(toastContainer);
-    }
-    const toastId = `toast-${Date.now()}`;
-    const toast = document.createElement('div');
-    toast.className = `toast bg-${type} text-white animate__animated animate__fadeInUp`;
-    toast.id = toastId;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                ${message}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    `;
-    toastContainer.appendChild(toast);
-    const toastInstance = new bootstrap.Toast(toast, {
-        autohide: true,
-        delay: 3000
-    });
-    toastInstance.show();
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-    });
-}
-
-document.getElementById('todoText').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        document.getElementById('saveTodoBtn').click();
-    }
-});
 
 function exportTodos() {
     const dataStr = JSON.stringify(todos, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -441,17 +596,23 @@ function importTodos() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json';
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
             try {
                 const importedTodos = JSON.parse(event.target.result);
                 if (Array.isArray(importedTodos)) {
                     if (confirm('Імпортувати справи? Це замінить всі поточні справи.')) {
-                        todos = importedTodos;
-                        saveTodos();
+                        await Promise.all(todos.map(todo => deleteTodoFromFirebase(todo.id)));
+                        const newTodos = [];
+                        for (const todo of importedTodos) {
+                            const {id, ...todoData} = todo;
+                            const firebaseId = await addTodo(todoData);
+                            newTodos.push({id: firebaseId, ...todoData});
+                        }
+                        todos = newTodos;
                         render();
                         showToast('Справи успішно імпортовано!', 'success');
                     }
@@ -469,6 +630,28 @@ function importTodos() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    loadTheme();
+    document.getElementById('showAll').addEventListener('click', () => applyFilter('all'));
+    document.getElementById('showActive').addEventListener('click', () => applyFilter('active'));
+    document.getElementById('showCompleted').addEventListener('click', () => applyFilter('completed'));
+    document.getElementById('toggleTheme').addEventListener('click', toggleTheme);
+    document.getElementById('clearCompleted').addEventListener('click', clearCompleted);
+    document.getElementById('refreshData').addEventListener('click', refreshData);
+    document.getElementById('saveTodoBtn').addEventListener('click', saveNewTodo);
+    document.getElementById('updateTodoBtn').addEventListener('click', updateTodo);
+    document.getElementById('confirmDeleteBtn').addEventListener('click', confirmDeleteTodo);
+    document.getElementById('viewEditTodoBtn').addEventListener('click', () => {
+        const todoId = document.getElementById('viewTodoModal').getAttribute('data-id');
+        const viewModal = bootstrap.Modal.getInstance(document.getElementById('viewTodoModal'));
+        viewModal.hide();
+        setTimeout(() => editTodoModal(todoId), 400);
+    });
+    document.getElementById('todoText').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('saveTodoBtn').click();
+        }
+    });
     const controlsContainer = document.querySelector('.stats-card .d-grid');
     if (controlsContainer) {
         const btnGroup = document.createElement('div');
@@ -487,3 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('importTodos').addEventListener('click', importTodos);
     }
 });
+
+window.connectToFirebase = connectToFirebase;
+window.checkTodo = checkTodo;
+window.editTodoModal = editTodoModal;
+window.deleteTodoModal = deleteTodoModal;
+window.viewTodo = viewTodo;
+window.hideError = hideError;
