@@ -531,22 +531,30 @@ function getPriorityColor(priority) {
 async function clearCompleted() {
     const completedTodos = todos.filter(todo => todo.completed);
     if (completedTodos.length > 0) {
-        if (confirm('Ви впевнені, що хочете видалити всі виконані справи?')) {
-            try {
-                showLoading('Видалення виконаних справ...');
-                await Promise.all(completedTodos.map(todo => deleteTodoFromFirebase(todo.id)));
-                todos = todos.filter(todo => !todo.completed);
-                render();
-                showToast('Виконані справи видалено!', 'info');
-            } catch (error) {
-                console.error('Error clearing completed todos:', error);
-                showError('Помилка при видаленні виконаних справ');
-            } finally {
-                hideLoading();
-            }
-        }
+        const clearCompletedModal = new bootstrap.Modal(document.getElementById('clearCompletedModal'));
+        clearCompletedModal.show();
     } else {
         showToast('Немає виконаних справ для видалення', 'warning');
+    }
+}
+
+async function executeClearCompleted() {
+    const completedTodos = todos.filter(todo => todo.completed);
+    try {
+        showLoading('Видалення виконаних справ...');
+        await Promise.all(completedTodos.map(todo => deleteTodoFromFirebase(todo.id)));
+        todos = todos.filter(todo => !todo.completed);
+        render();
+        showToast('Виконані справи видалено!', 'info');
+    } catch (error) {
+        console.error('Error clearing completed todos:', error);
+        showError('Помилка при видаленні виконаних справ');
+    } finally {
+        hideLoading();
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('clearCompletedModal'));
+        if (modalInstance) {
+            modalInstance.hide();
+        }
     }
 }
 
@@ -592,34 +600,59 @@ function exportTodos() {
     showToast('Справи успішно експортовано!', 'success');
 }
 
-function importTodos() {
+const importConfirmModalHTML = `
+<div class="modal fade" id="importConfirmModal" tabindex="-1" aria-labelledby="importConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importConfirmLabel">Підтвердження імпорту</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Знайдено справи з однаковими назвами:</p>
+                <ul id="duplicatesList" class="list-unstyled mb-3"></ul>
+                <p class="text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Ці справи будуть замінені імпортованими даними. Продовжити?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-warning" id="confirmImportBtn">Замінити і імпортувати</button>
+            </div>
+        </div>
+    </div>
+</div>
+`;
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('importConfirmModal')) {
+        document.body.insertAdjacentHTML('beforeend', importConfirmModalHTML);
+    }
+});
+
+let tempImportedTodos = null;
+
+async function importTodos() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json';
     input.onchange = async (e) => {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) return; // [cite: 189]
         const reader = new FileReader();
         reader.onload = async (event) => {
             try {
-                const importedTodos = JSON.parse(event.target.result);
-                if (Array.isArray(importedTodos)) {
-                    if (confirm('Імпортувати справи? Це замінить всі поточні справи.')) {
-                        await Promise.all(todos.map(todo => deleteTodoFromFirebase(todo.id)));
-                        const newTodos = [];
-                        for (const todo of importedTodos) {
-                            const {id, ...todoData} = todo;
-                            const firebaseId = await addTodo(todoData);
-                            newTodos.push({id: firebaseId, ...todoData});
-                        }
-                        todos = newTodos;
-                        render();
-                        showToast('Справи успішно імпортовано!', 'success');
-                    }
+                const parsedTodos = JSON.parse(event.target.result);
+                if (Array.isArray(parsedTodos)) {
+                    tempImportedTodos = parsedTodos;
+                    const generalImportConfirmModal = new bootstrap.Modal(document.getElementById('generalImportConfirmModal'));
+                    generalImportConfirmModal.show();
                 } else {
                     showToast('Помилка: неправильний формат файлу', 'danger');
                 }
             } catch (err) {
+                hideLoading();
                 showToast('Помилка при читанні файлу', 'danger');
                 console.error(err);
             }
@@ -628,7 +661,73 @@ function importTodos() {
     };
     input.click();
 }
-
+async function proceedWithActualImport() {
+    if (!tempImportedTodos) return;
+    const importedTodosToProcess = tempImportedTodos;
+    tempImportedTodos = null;
+    try {
+        showLoading('Імпорт справ...');
+        let addedCount = 0;
+        let updatedCount = 0;
+        for (const importedTodo of importedTodosToProcess) {
+            const existingTodoIndex = todos.findIndex(todo =>
+                todo.text.toLowerCase().trim() === importedTodo.text.toLowerCase().trim()
+            );
+            if (existingTodoIndex !== -1) {
+                const existingTodo = todos[existingTodoIndex];
+                const updatedData = {
+                    text: importedTodo.text,
+                    description: importedTodo.description || '',
+                    priority: importedTodo.priority || 'medium',
+                    completed: importedTodo.completed || false,
+                    deadline: importedTodo.deadline || null
+                };
+                try {
+                    await updateTodoInFirebase(existingTodo.id, updatedData);
+                    todos[existingTodoIndex] = {
+                        ...existingTodo,
+                        ...updatedData
+                    };
+                    updatedCount++;
+                } catch (error) {
+                    console.error('Error updating existing todo:', error);
+                }
+            } else {
+                const { id, ...todoData } = importedTodo;
+                const newTodoData = {
+                    text: todoData.text,
+                    description: todoData.description || '',
+                    completed: todoData.completed || false,
+                    priority: todoData.priority || 'medium',
+                    createdAt: todoData.createdAt || new Date().toISOString(),
+                    deadline: todoData.deadline || null
+                };
+                try {
+                    const firebaseId = await addTodo(newTodoData);
+                    todos.push({ id: firebaseId, ...newTodoData });
+                    addedCount++;
+                } catch (error) {
+                    console.error('Error adding new todo:', error);
+                }
+            }
+        }
+        render();
+        hideLoading();
+        let message = 'Справи успішно імпортовано! ';
+        if (addedCount > 0) message += `Додано: ${addedCount}. `;
+        if (updatedCount > 0) message += `Оновлено: ${updatedCount}.`;
+        showToast(message, 'success');
+    } catch (err) {
+        hideLoading();
+        showToast('Помилка під час імпорту справ.', 'danger');
+        console.error("Error during import process:", err);
+    } finally {
+        const modalInstance = bootstrap.Modal.getInstance(document.getElementById('generalImportConfirmModal'));
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+    }
+}
 document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     document.getElementById('showAll').addEventListener('click', () => applyFilter('all'));
@@ -652,6 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('saveTodoBtn').click();
         }
     });
+    document.getElementById('confirmClearCompletedBtn').addEventListener('click', executeClearCompleted);
+    document.getElementById('proceedWithImportBtn').addEventListener('click', proceedWithActualImport);
     const controlsContainer = document.querySelector('.stats-card .d-grid');
     if (controlsContainer) {
         const btnGroup = document.createElement('div');
@@ -668,6 +769,9 @@ document.addEventListener('DOMContentLoaded', () => {
         controlsContainer.appendChild(btnGroup);
         document.getElementById('exportTodos').addEventListener('click', exportTodos);
         document.getElementById('importTodos').addEventListener('click', importTodos);
+    }
+    if (!document.getElementById('importConfirmModal')) {
+        document.body.insertAdjacentHTML('beforeend', importConfirmModalHTML);
     }
 });
 

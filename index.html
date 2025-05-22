@@ -247,6 +247,40 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="clearCompletedModal" tabindex="-1" aria-labelledby="clearCompletedModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clearCompletedModalLabel">Підтвердження</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Ви впевнені, що хочете видалити всі виконані справи?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-danger" id="confirmClearCompletedBtn">Видалити</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="generalImportConfirmModal" tabindex="-1" aria-labelledby="generalImportConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generalImportConfirmModalLabel">Підтвердження імпорту</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Імпортувати справи? Справи з однаковими назвами будуть замінені.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-primary" id="proceedWithImportBtn">Імпортувати</button>
+            </div>
+        </div>
+    </div>
+</div>
 <footer class="app-footer text-center mt-5 mb-3">
     <p class="fw-bold">Додаток оптимізовано для мобільних пристроїв</p>
 </footer>
