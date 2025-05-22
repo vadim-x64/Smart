@@ -468,6 +468,22 @@ body {
         padding: 0.6rem 0.5rem;
     }
 
+    .list-group-item .todo-item-content {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .list-group-item .todo-item-content .form-check-input {
+        margin-top: 0.2rem;
+        flex-shrink: 0;
+    }
+
+    .list-group-item .todo-item-content .flex-grow-1 {
+        flex-grow: 1;
+        flex-basis: 0;
+        min-width: 100px;
+    }
+
     .list-group-item {
         padding: 0.75rem 1rem;
         font-size: 0.9rem;
@@ -476,10 +492,15 @@ body {
     .todo-actions {
         display: flex;
         gap: 0.5rem;
-        margin-left: auto;
-        margin-top: 0.5rem;
-        width: auto;
         justify-content: flex-end;
+        flex-basis: 100%;
+        margin-top: 0.75rem;
+        margin-left: 0;
+        flex-shrink: 0;
+    }
+
+    .action-button i {
+        margin-right: 0 !important;
     }
 
     .action-button {
