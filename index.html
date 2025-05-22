@@ -11,6 +11,48 @@
     <link rel="stylesheet" href="appearance/index.css">
 </head>
 <body>
+<div id="authSection" class="auth-section animate__animated animate__fadeIn" style="display: none;">
+    <div class="card">
+        <div class="card-body">
+            <h4 class="text-center mb-4"><i class="fas fa-user-lock me-2"></i>Авторизація</h4>
+            <div class="mb-3">
+                <input type="text" id="authNickname" class="form-control" placeholder="Ваш нікнейм">
+            </div>
+            <div class="mb-3">
+                <input type="password" id="authPassword" class="form-control" placeholder="Пароль">
+            </div>
+            <div class="d-grid gap-2">
+                <button class="btn btn-primary" onclick="login()">Увійти</button>
+                <button class="btn btn-outline-secondary" onclick="showRegisterForm()">Реєстрація</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="registerSection" class="auth-section animate__animated animate__fadeIn" style="display: none;">
+    <div class="card">
+        <div class="card-body">
+            <h4 class="text-center mb-4"><i class="fas fa-user-plus me-2"></i>Реєстрація</h4>
+            <div class="mb-3">
+                <input type="text" id="regNickname" class="form-control" placeholder="Ваш нікнейм">
+            </div>
+            <div class="mb-3">
+                <input type="password" id="regPassword" class="form-control" placeholder="Пароль">
+            </div>
+            <div class="d-grid gap-2">
+                <button class="btn btn-success" onclick="register()">Зареєструватись</button>
+                <button class="btn btn-outline-secondary" onclick="showLoginForm()">Назад до входу</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loading-spinner">
         <div class="spinner-border text-primary" role="status">
@@ -47,6 +89,11 @@
 <!--    </div>-->
     <div id="mainApp" style="display: none;">
         <header class="app-header text-center animate__animated animate__fadeInDown">
+            <div class="d-flex justify-content-end">
+                <button onclick="logout()" class="btn btn-outline-danger btn-sm mb-2">
+                    <i class="fas fa-sign-out-alt me-2"></i>Вийти
+                </button>
+            </div>
             <h1><i class="fas fa-check-double me-2"></i>SmartApp</h1>
             <p class="mb-0">Організуйте свої справи легко та ефективно</p>
             <div class="mt-2">

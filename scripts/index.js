@@ -11,6 +11,98 @@ const loadingOverlay = document.getElementById('loadingOverlay');
 const errorAlert = document.getElementById('errorAlert');
 const firebaseConfigForm = document.getElementById('firebaseConfigForm');
 const mainApp = document.getElementById('mainApp');
+let currentUser = null;
+
+function showLoginForm() {
+    document.getElementById('authSection').style.display = 'block';
+    document.getElementById('registerSection').style.display = 'none';
+}
+
+function showRegisterForm() {
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('registerSection').style.display = 'block';
+}
+
+async function register() {
+    const nickname = document.getElementById('regNickname').value.trim();
+    const password = document.getElementById('regPassword').value.trim();
+
+    if (!nickname || !password) {
+        showError('Заповніть всі поля');
+        return;
+    }
+
+    try {
+        showLoading('Реєстрація...');
+        const usersResponse = await fetch(`${FIREBASE_URL}/users.json`);
+        const users = await usersResponse.json() || {};
+
+        const userExists = Object.values(users).some(u => u.nickname === nickname);
+        if (userExists) {
+            throw new Error('Користувач вже існує');
+        }
+
+        const newUser = {
+            nickname,
+            password: btoa(password),
+            todos: {}
+        };
+
+        const response = await fetch(`${FIREBASE_URL}/users.json`, {
+            method: 'POST',
+            body: JSON.stringify(newUser)
+        });
+
+        if (!response.ok) throw new Error('Помилка реєстрації');
+        showLoginForm();
+        showToast('Реєстрація успішна!', 'success');
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function login() {
+    const nickname = document.getElementById('authNickname').value.trim();
+    const password = document.getElementById('authPassword').value.trim();
+
+    if (!nickname || !password) {
+        showError('Заповніть всі поля');
+        return;
+    }
+
+    try {
+        showLoading('Вхід...');
+        const usersResponse = await fetch(`${FIREBASE_URL}/users.json`);
+        const users = await usersResponse.json() || {};
+
+        const userEntry = Object.entries(users).find(([_, u]) => u.nickname === nickname);
+        if (!userEntry) throw new Error('Користувача не знайдено');
+
+        const [userId, userData] = userEntry;
+        if (userData.password !== btoa(password)) throw new Error('Невірний пароль');
+
+        currentUser = userId;
+        localStorage.setItem('currentUser', userId);
+        document.getElementById('authSection').style.display = 'none';
+        mainApp.style.display = 'block';
+        await loadTodosFromFirebase();
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function logout() {
+    currentUser = null;
+    localStorage.removeItem('currentUser');
+    mainApp.style.display = 'none';
+    document.getElementById('authSection').style.display = 'block';
+    todos = [];
+    render();
+}
 
 async function connectToFirebase() {
     try {
@@ -19,7 +111,7 @@ async function connectToFirebase() {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        mainApp.style.display = 'block';
+        // Видалений рядок, що показував головний інтерфейс без авторизації
         await loadTodosFromFirebase();
         showToast('Успішно підключено до Firebase!', 'success');
     } catch (error) {
@@ -28,12 +120,22 @@ async function connectToFirebase() {
     } finally {
         hideLoading();
     }
+
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+        currentUser = savedUser;
+        mainApp.style.display = 'block';
+        document.getElementById('authSection').style.display = 'none';
+        await loadTodosFromFirebase();
+    } else {
+        document.getElementById('authSection').style.display = 'block';
+    }
 }
 
 async function addTodo(todoData) {
     try {
         showLoading('Додавання справи...');
-        const response = await fetch(`${FIREBASE_URL}/todos.json`, {
+        const response = await fetch(`${FIREBASE_URL}/users/${currentUser}/todos.json`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -57,21 +159,13 @@ async function addTodo(todoData) {
 async function getTodos() {
     try {
         showLoading('Завантаження справ...');
-        const response = await fetch(`${FIREBASE_URL}/todos.json`);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!currentUser) return [];
+        const response = await fetch(`${FIREBASE_URL}/users/${currentUser}/todos.json`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
         const data = await response.json();
-        if (!data) {
-            return [];
-        }
-        const todosArray = Object.keys(data).map(key => ({
-            id: key,
-            ...data[key]
-        }));
-        return todosArray;
+        return data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
     } catch (error) {
-        console.error('Error getting todos:', error);
         showError('Помилка при завантаженні справ: ' + error.message);
         return [];
     } finally {
@@ -82,19 +176,14 @@ async function getTodos() {
 async function updateTodoInFirebase(id, todoData) {
     try {
         showLoading('Оновлення справи...');
-        const response = await fetch(`${FIREBASE_URL}/todos/${id}.json`, {
+        const response = await fetch(`${FIREBASE_URL}/users/${currentUser}/todos/${id}.json`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(todoData)
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return await response.json();
     } catch (error) {
-        console.error('Error updating todo:', error);
         showError('Помилка при оновленні справи: ' + error.message);
         throw error;
     } finally {
@@ -105,15 +194,12 @@ async function updateTodoInFirebase(id, todoData) {
 async function deleteTodoFromFirebase(id) {
     try {
         showLoading('Видалення справи...');
-        const response = await fetch(`${FIREBASE_URL}/todos/${id}.json`, {
+        const response = await fetch(`${FIREBASE_URL}/users/${currentUser}/todos/${id}.json`, {
             method: 'DELETE'
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return true;
     } catch (error) {
-        console.error('Error deleting todo:', error);
         showError('Помилка при видаленні справи: ' + error.message);
         throw error;
     } finally {
@@ -331,6 +417,11 @@ function updateStats() {
 }
 
 async function saveNewTodo() {
+    if (!currentUser) {
+        showError('Будь ласка, увійдіть для додавання справ');
+        return;
+    }
+
     const todoText = document.getElementById('todoText').value.trim();
     if (!todoText) {
         shakeTodoText();
