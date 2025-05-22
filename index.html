@@ -29,22 +29,22 @@
     </div>
 </div>
 <div class="container">
-    <div id="firebaseConfigForm" class="firebase-config-form animate__animated animate__fadeIn">
-        <h4 class="text-center mb-3">
-            <i class="fas fa-database me-2"></i>Налаштування Firebase
-        </h4>
-        <div class="mb-3">
-            <label for="firebaseUrl" class="form-label">URL Firebase Realtime Database</label>
-            <input type="url" class="form-control" id="firebaseUrl"
-                   placeholder="https://your-project.firebaseio.com/" required>
-            <small class="form-text text-muted">
-                Введіть URL вашої Firebase Realtime Database (без .json в кінці)
-            </small>
-        </div>
-        <button type="button" class="btn btn-primary w-100" onclick="connectToFirebase()">
-            <i class="fas fa-plug me-2"></i>Підключитися
-        </button>
-    </div>
+<!--    <div id="firebaseConfigForm" class="firebase-config-form animate__animated animate__fadeIn">-->
+<!--        <h4 class="text-center mb-3">-->
+<!--            <i class="fas fa-database me-2"></i>Налаштування Firebase-->
+<!--        </h4>-->
+<!--        <div class="mb-3">-->
+<!--            <label for="firebaseUrl" class="form-label">URL Firebase Realtime Database</label>-->
+<!--            <input type="url" class="form-control" id="firebaseUrl"-->
+<!--                   placeholder="https://your-project.firebaseio.com/" required>-->
+<!--            <small class="form-text text-muted">-->
+<!--                Введіть URL вашої Firebase Realtime Database (без .json в кінці)-->
+<!--            </small>-->
+<!--        </div>-->
+<!--        <button type="button" class="btn btn-primary w-100" onclick="connectToFirebase()">-->
+<!--            <i class="fas fa-plug me-2"></i>Підключитися-->
+<!--        </button>-->
+<!--    </div>-->
     <div id="mainApp" style="display: none;">
         <header class="app-header text-center animate__animated animate__fadeInDown">
             <h1><i class="fas fa-check-double me-2"></i>SmartApp</h1>
@@ -281,9 +281,29 @@
         </div>
     </div>
 </div>
-<footer class="app-footer text-center mt-5 mb-3">
-    <p class="fw-bold">Додаток оптимізовано для мобільних пристроїв</p>
-</footer>
+<div class="modal fade" id="importConfirmModal" tabindex="-1" aria-labelledby="importConfirmLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importConfirmLabel">Підтвердження імпорту</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Знайдено справи з однаковими назвами:</p>
+                <ul id="duplicatesList" class="list-unstyled mb-3"></ul>
+                <p class="text-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Ці справи будуть замінені імпортованими даними. Продовжити?
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                <button type="button" class="btn btn-warning" id="confirmImportBtn">Замінити і імпортувати</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
 <script src="scripts/index.js"></script>
 </body>

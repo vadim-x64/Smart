@@ -1,6 +1,6 @@
 let todos = [];
 let currentFilter = 'all';
-let firebaseUrl = '';
+const FIREBASE_URL = "https://smartapp-2d7fa-default-rtdb.firebaseio.com/";
 let isOnline = true;
 const todoList = document.getElementById('todo-list');
 const itemCountSpan = document.getElementById('item-count');
@@ -13,19 +13,12 @@ const firebaseConfigForm = document.getElementById('firebaseConfigForm');
 const mainApp = document.getElementById('mainApp');
 
 async function connectToFirebase() {
-    const url = document.getElementById('firebaseUrl').value.trim();
-    if (!url) {
-        showError('Будь ласка, введіть URL Firebase Database');
-        return;
-    }
-    firebaseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
     try {
         showLoading('Підключення до Firebase...');
-        const response = await fetch(`${firebaseUrl}/test.json`);
+        const response = await fetch(`${FIREBASE_URL}/test.json`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        firebaseConfigForm.style.display = 'none';
         mainApp.style.display = 'block';
         await loadTodosFromFirebase();
         showToast('Успішно підключено до Firebase!', 'success');
@@ -40,7 +33,7 @@ async function connectToFirebase() {
 async function addTodo(todoData) {
     try {
         showLoading('Додавання справи...');
-        const response = await fetch(`${firebaseUrl}/todos.json`, {
+        const response = await fetch(`${FIREBASE_URL}/todos.json`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -64,7 +57,7 @@ async function addTodo(todoData) {
 async function getTodos() {
     try {
         showLoading('Завантаження справ...');
-        const response = await fetch(`${firebaseUrl}/todos.json`);
+        const response = await fetch(`${FIREBASE_URL}/todos.json`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -89,7 +82,7 @@ async function getTodos() {
 async function updateTodoInFirebase(id, todoData) {
     try {
         showLoading('Оновлення справи...');
-        const response = await fetch(`${firebaseUrl}/todos/${id}.json`, {
+        const response = await fetch(`${FIREBASE_URL}/todos/${id}.json`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
@@ -112,7 +105,7 @@ async function updateTodoInFirebase(id, todoData) {
 async function deleteTodoFromFirebase(id) {
     try {
         showLoading('Видалення справи...');
-        const response = await fetch(`${firebaseUrl}/todos/${id}.json`, {
+        const response = await fetch(`${FIREBASE_URL}/todos/${id}.json`, {
             method: 'DELETE'
         });
         if (!response.ok) {
@@ -152,9 +145,8 @@ function hideError() {
 function showToast(message, type = 'info') {
     let toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        document.body.appendChild(toastContainer);
+        console.error('Toast container not found');
+        return;
     }
     const toastId = `toast-${Date.now()}`;
     const toast = document.createElement('div');
@@ -600,30 +592,7 @@ function exportTodos() {
     showToast('Справи успішно експортовано!', 'success');
 }
 
-const importConfirmModalHTML = `
-<div class="modal fade" id="importConfirmModal" tabindex="-1" aria-labelledby="importConfirmLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="importConfirmLabel">Підтвердження імпорту</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>Знайдено справи з однаковими назвами:</p>
-                <ul id="duplicatesList" class="list-unstyled mb-3"></ul>
-                <p class="text-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Ці справи будуть замінені імпортованими даними. Продовжити?
-                </p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
-                <button type="button" class="btn btn-warning" id="confirmImportBtn">Замінити і імпортувати</button>
-            </div>
-        </div>
-    </div>
-</div>
-`;
+
 
 document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('importConfirmModal')) {
@@ -729,7 +698,9 @@ async function proceedWithActualImport() {
     }
 }
 document.addEventListener('DOMContentLoaded', () => {
+
     loadTheme();
+    connectToFirebase();
     document.getElementById('showAll').addEventListener('click', () => applyFilter('all'));
     document.getElementById('showActive').addEventListener('click', () => applyFilter('active'));
     document.getElementById('showCompleted').addEventListener('click', () => applyFilter('completed'));
