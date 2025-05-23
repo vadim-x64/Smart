@@ -20,6 +20,12 @@
             </div>
             <div class="mb-3">
                 <input type="password" id="authPassword" class="form-control" placeholder="Пароль">
+                <div class="form-check1">
+                    <input class="form-check-input" type="checkbox" id="showAuthPassword">
+                    <label class="form-check-label" for="showAuthPassword">
+                        Показати пароль
+                    </label>
+                </div>
             </div>
             <div class="d-grid gap-2">
                 <button class="btn btn-primary" onclick="login()">Увійти</button>
@@ -28,7 +34,6 @@
         </div>
     </div>
 </div>
-
 <div id="registerSection" class="auth-section animate__animated animate__fadeIn" style="display: none;">
     <div class="card">
         <div class="card-body">
@@ -38,6 +43,12 @@
             </div>
             <div class="mb-3">
                 <input type="password" id="regPassword" class="form-control" placeholder="Пароль">
+                <div class="form-check1">
+                    <input class="form-check-input" type="checkbox" id="showRegPassword">
+                    <label class="form-check-label" for="showRegPassword">
+                        Показати пароль
+                    </label>
+                </div>
             </div>
             <div class="d-grid gap-2">
                 <button class="btn btn-success" onclick="register()">Зареєструватись</button>
@@ -46,13 +57,6 @@
         </div>
     </div>
 </div>
-
-
-
-
-
-
-
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loading-spinner">
         <div class="spinner-border text-primary" role="status">
@@ -71,26 +75,10 @@
     </div>
 </div>
 <div class="container">
-<!--    <div id="firebaseConfigForm" class="firebase-config-form animate__animated animate__fadeIn">-->
-<!--        <h4 class="text-center mb-3">-->
-<!--            <i class="fas fa-database me-2"></i>Налаштування Firebase-->
-<!--        </h4>-->
-<!--        <div class="mb-3">-->
-<!--            <label for="firebaseUrl" class="form-label">URL Firebase Realtime Database</label>-->
-<!--            <input type="url" class="form-control" id="firebaseUrl"-->
-<!--                   placeholder="https://your-project.firebaseio.com/" required>-->
-<!--            <small class="form-text text-muted">-->
-<!--                Введіть URL вашої Firebase Realtime Database (без .json в кінці)-->
-<!--            </small>-->
-<!--        </div>-->
-<!--        <button type="button" class="btn btn-primary w-100" onclick="connectToFirebase()">-->
-<!--            <i class="fas fa-plug me-2"></i>Підключитися-->
-<!--        </button>-->
-<!--    </div>-->
     <div id="mainApp" style="display: none;">
         <header class="app-header text-center animate__animated animate__fadeInDown">
             <div class="d-flex justify-content-end">
-                <button onclick="logout()" class="btn btn-outline-danger btn-sm mb-2">
+                <button onclick="logout()" class="btn btn-danger btn-sm mb-2">
                     <i class="fas fa-sign-out-alt me-2"></i>Вийти
                 </button>
             </div>

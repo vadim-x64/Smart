@@ -843,3 +843,24 @@ window.editTodoModal = editTodoModal;
 window.deleteTodoModal = deleteTodoModal;
 window.viewTodo = viewTodo;
 window.hideError = hideError;
+
+function setupPasswordToggle() {
+    const authPasswordField = document.getElementById('authPassword');
+    const showAuthPasswordCheckbox = document.getElementById('showAuthPassword');
+    if (showAuthPasswordCheckbox && authPasswordField) {
+        showAuthPasswordCheckbox.addEventListener('change', function() {
+            authPasswordField.type = this.checked ? 'text' : 'password';
+        });
+    }
+    const regPasswordField = document.getElementById('regPassword');
+    const showRegPasswordCheckbox = document.getElementById('showRegPassword');
+    if (showRegPasswordCheckbox && regPasswordField) {
+        showRegPasswordCheckbox.addEventListener('change', function() {
+            regPasswordField.type = this.checked ? 'text' : 'password';
+        });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    setupPasswordToggle();
+});
